@@ -8,7 +8,7 @@
 import time
 from typing import Dict, List, Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 from rsoccer_gym.Entities import Frame, Robot, Field
 from rsoccer_gym.Simulators.rsim import RSimSSL
@@ -65,9 +65,12 @@ class SSLBaseEnv(gym.Env):
         observation = self._frame_to_observations()
         reward, done = self._calculate_reward_and_done()
 
-        return observation, reward, done, {}
+        if self.steps >= 300:
+            done = True
 
-    def reset(self):
+        return observation, reward, done, None, {}
+
+    def reset(self, seed=42, options=None):
         self.steps = 0
         self.last_frame = None
         self.sent_commands = None
@@ -82,7 +85,7 @@ class SSLBaseEnv(gym.Env):
         # Get frame from simulator
         self.frame = self.rsim.get_frame()
 
-        return self._frame_to_observations()
+        return self._frame_to_observations(), {}
 
     def render(self, mode: Optional = 'human') -> None:
         '''

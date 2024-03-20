@@ -3,7 +3,7 @@ import random
 from rsoccer_gym.Utils.Utils import OrnsteinUhlenbeckAction
 from typing import Dict
 
-import gym
+import gymnasium as gym
 import numpy as np
 from rsoccer_gym.Entities import Frame, Robot, Ball
 from rsoccer_gym.ssl.ssl_gym_base import SSLBaseEnv
@@ -118,18 +118,39 @@ class SSLGoToBallEnv(SSLBaseEnv):
         ball = self.frame.ball
         robot = self.frame.robots_blue[0]
         
-        dist_robot_ball = np.linalg.norm(
-            np.array([ball.x, ball.y]) 
-            - np.array([robot.x, robot.y])
-        )
+        diff_vec = np.array([ball.x, ball.y]) - np.array([robot.x, robot.y])
+        dist_robot_ball = np.linalg.norm(diff_vec)
+
+        orientation_vec = np.array([np.cos(robot.theta), np.sin(robot.theta)])
+        angular_dist = np.dot(diff_vec, orientation_vec)
         
         # Check if robot is less than 0.2m from ball
+        done = False
+        max_dist = np.sqrt(self.field.length**2 + self.field.width**2)
+        # if dist_robot_ball > 0.5*max_dist:
+        #     reward_dist = -1
+        # elif 0.3*max_dist < dist_robot_ball < 0.5*max_dist:
+        #     reward_dist = 0
+        # elif 0.2*max_dist < dist_robot_ball < 0.3*max_dist:
+        #     reward_dist = 0.25
+        # elif 0.2 < dist_robot_ball < 0.2*max_dist:
+        #     reward_dist = 0.5
+        # elif dist_robot_ball < 0.2:
+        #     reward_dist = 1
+        #     done = True
+        reward_dist = -dist_robot_ball/max_dist
         if dist_robot_ball < 0.2:
-            reward = 1
+            reward_dist = 1
+            done = True
 
-        done = reward
+        # if np.cos(np.deg2rad(45)) < angular_dist <= np.cos(np.deg2rad(0)):
+        #     reward_angle = 1
+        # elif np.cos(np.deg2rad(90)) > angular_dist >= np.cos(np.deg2rad(45)):
+        #     reward_angle = -0.5
+        # else:
+        #     reward_angle = -1
 
-        return reward, done
+        return reward_dist, done # + 0.5*reward_angle, done
     
     def _get_initial_positions_frame(self):
         '''Returns the position of each robot and ball for the initial frame'''
