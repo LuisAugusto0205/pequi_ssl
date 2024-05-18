@@ -4,3 +4,4 @@ tyro
 stable-baselines3
 tensorboard
 pyglet==1.5.27
+getch

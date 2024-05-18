@@ -16,8 +16,9 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Callable
 
 from gymnasium.wrappers import TransformObservation
-from rsoccer_gym.ssl.ssl_go_to_ball.ssl_gym_go_to_ball import SSLGoToBallEnv
 
+#from rsoccer_gym.ssl.ssl_go_to_ball.ssl_gym_go_to_ball import SSLGoToBallEnv
+from rsoccer_gym.ssl.ssl_go_to_ball.ssl_multi_agent import SSLMultiAgentEnv
 
 def evaluate(
     eval_episodes: int,
@@ -27,21 +28,20 @@ def evaluate(
     actor_train=None,
 ):
     # envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
-    env = SSLGoToBallEnv(field_type=2)
+    env = SSLGoToBallEnv(n_robots_blue=3, n_robots_yellow=3, field_type=2)
     #env = TransformObservation(env, lambda obs: [((obs[0] - obs[4])**2 + (obs[1] - obs[5])**2)**0.5, obs[2], obs[3], obs[6], obs[7], obs[8], obs[9], obs[10]])
-    env = TransformObservation(env, lambda obs: [obs[0], obs[4], obs[1], obs[5]])
     obs, _ = env.reset()
-    env.observation_space = gym.spaces.Box(low=-env.NORM_BOUNDS, high=env.NORM_BOUNDS, shape=(len(obs), ), dtype=np.float32)
-    env.single_observation_space = env.observation_space
-    env.single_action_space = env.action_space
+    
+    obs_size = np.array(env.observation_space.shape).prod()
+    act_size = np.prod(env.action_space.shape)
 
-    model = Model(env).to(device)
+    model = Model(act_size, obs_size, env.action_space.high, env.action_space.low).to(device)
     
     model.load_state_dict(actor_train.state_dict())
     model.eval()
 
-    episodic_returns = []
     for ep in range(eval_episodes):
+        episodic_returns = []
         obs, _ = env.reset()
         done = False
         while not done:
@@ -97,15 +97,15 @@ class Args:
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
-    tau: float = 0.005
+    tau: float = 0.001
     """target smoothing coefficient (default: 0.005)"""
     batch_size: int = 256
     """the batch size of sample from the reply memory"""
-    exploration_noise: float = 0.1
+    exploration_noise: float = 0.01
     """the scale of exploration noise"""
-    learning_starts: int = 2e3
+    learning_starts: int = 2000
     """timestep to start learning"""
-    policy_frequency: int = 2
+    policy_frequency: int = 1
     """the frequency of training policy (delayed)"""
     noise_clip: float = 0.5
     """noise clip parameter of the Target Policy Smoothing Regularization"""
@@ -132,10 +132,10 @@ def make_env():#env_id, seed, idx, capture_video, run_name):
 
 # ALGO LOGIC: initialize agent here:
 class QNetwork(nn.Module):
-    def __init__(self, env):
+    def __init__(self, act_size, obs_size):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 8)
-        self.fc2 = nn.Linear(8, 8)
+        self.fc1 = nn.Linear(act_size + obs_size, 8)
+        self.fc2 = nn.Linear(8, 4)
         self.fc3 = nn.Linear(4, 1)
 
     def forward(self, x, a):
@@ -147,17 +147,17 @@ class QNetwork(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, env):
+    def __init__(self, act_size, obs_size, high, low):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 8)
-        self.fc2 = nn.Linear(8, 8)
-        self.fc_mu = nn.Linear(4, np.prod(env.single_action_space.shape))
+        self.fc1 = nn.Linear(obs_size, 8)
+        self.fc2 = nn.Linear(8, 4)
+        self.fc_mu = nn.Linear(4, act_size)
         # action rescaling
         self.register_buffer(
-            "action_scale", torch.tensor((env.single_action_space.high - env.single_action_space.low) / 2.0, dtype=torch.float32)
+            "action_scale", torch.tensor((high - low) / 2.0, dtype=torch.float32)
         )
         self.register_buffer(
-            "action_bias", torch.tensor((env.single_action_space.high + env.single_action_space.low) / 2.0, dtype=torch.float32)
+            "action_bias", torch.tensor((high + low) / 2.0, dtype=torch.float32)
         )
 
     def forward(self, x):
@@ -193,66 +193,73 @@ poetry run pip install "stable_baselines3==2.0.0a1"
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
-    # env setup
-    envs = []
-    for i in range(6):
-        env = SSLGoToBallEnv(field_type=2)
-        env = TransformObservation(env, lambda obs: [((obs[0] - obs[4])**2 + (obs[1] - obs[5])**2)**0.5, obs[2], obs[3], obs[6], obs[7], obs[8], obs[9], obs[10]])
-        obs, _ = env.reset()
-        env.observation_space = gym.spaces.Box(low=-env.NORM_BOUNDS, high=env.NORM_BOUNDS, shape=(len(obs), ), dtype=np.float32)
-        envs.append(lambda:env)
+    env = SSLGoToBallEnv(field_type=2)
+    #env = TransformObservation(env, lambda obs: [((obs[0] - obs[4])**2 + (obs[1] - obs[5])**2)**0.5, obs[2], obs[3], obs[6], obs[7], obs[8], obs[9], obs[10]])
+    env = TransformObservation(env, lambda obs: [obs[0], obs[4], obs[1], obs[5]])
+    obs, _ = env.reset()
+    env.observation_space = gym.spaces.Box(low=-env.NORM_BOUNDS, high=env.NORM_BOUNDS, shape=(len(obs), ), dtype=np.float32)
     
-    sync_env = gym.vector.SyncVectorEnv(envs)
+    obs_size = np.array(env.observation_space.shape).prod()
+    act_size = np.prod(env.action_space.shape)
     
-    print(sync_env.action_space.__class__)
+    print(env.action_space.__class__)
     print(gym.spaces.Box)
-    assert isinstance(sync_env.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    assert isinstance(env.action_space, gym.spaces.Box), "only continuous action space is supported"
 
-    actor = Actor(sync_env).to(device)
-    qf1 = QNetwork(sync_env).to(device)
-    qf1_target = QNetwork(sync_env).to(device)
-    target_actor = Actor(sync_env).to(device)
+    actor = Actor(act_size, obs_size, env.action_space.high, env.action_space.low).to(device)
+    qf1 = QNetwork(act_size, obs_size).to(device)
+    actor_params = torch.load('runs/ssl_pequi__ssl_ddpg__1__1712090842/ssl_ddpg.cleanrl_model')[0]
+    actor.load_state_dict(actor_params)
+
+    qf1_target = QNetwork(act_size, obs_size).to(device)
+    target_actor = Actor(act_size, obs_size, env.action_space.high, env.action_space.low).to(device)
+
     target_actor.load_state_dict(actor.state_dict())
     qf1_target.load_state_dict(qf1.state_dict())
+
     q_optimizer = optim.Adam(list(qf1.parameters()), lr=args.learning_rate)
     actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.learning_rate)
 
     #env.observation_space.dtype = np.float32
     rb = ReplayBuffer(
         args.buffer_size,
-        sync_env.single_observation_space,
-        sync_env.single_action_space,
+        env.observation_space,
+        env.action_space,
         device,
         handle_timeout_termination=False,
     )
     start_time = time.time()
 
     # TRY NOT TO MODIFY: start the game
-    obs, _ = sync_env.reset(seed=args.seed)
+    obs, _ = env.reset(seed=args.seed)
     w = 20
     steps_rewards = []
+    eps = 0
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put action logic here
         if global_step < args.learning_starts:
-            actions = sync_env.action_space.sample()
+            action = env.action_space.sample()
         else:
             with torch.no_grad():
                 actions = []
-                for ob in obs:
-                    action = actor(torch.Tensor(ob).to(device))
-                    action += torch.normal(0, actor.action_scale * args.exploration_noise)
-                    action = action.cpu().numpy().clip(sync_env.single_action_space.low, sync_env.single_action_space.high)
-                    actions.append(action)
-                actions = np.array(actions)
+                action = actor(torch.Tensor(obs).to(device))
+                action += torch.normal(0, actor.action_scale * args.exploration_noise)
+                action = action.cpu().numpy().clip(env.action_space.low, env.action_space.high)
                 #print(actions.shape)
 
-        next_obs, rewards, terminations, trunc, infos = sync_env.step(actions)
-        steps_rewards.append(np.mean(rewards))
+        next_obs, rewards, terminations, trunc, infos = env.step(action)
+        steps_rewards.append(rewards)
 
         real_next_obs = next_obs.copy()
 
-        for i in range(real_next_obs.shape[0]):
-            rb.add(obs[i, :], real_next_obs[i, :], actions[i, :], rewards[i], terminations[i], infos)
+        rb.add(obs, real_next_obs, action, rewards, terminations, infos)
+
+        if terminations:
+            eps += 1
+            writer.add_scalar("losses/rewards", np.sum(steps_rewards), eps)
+            obs, _ = env.reset()
+            steps_rewards = []
+            terminations = False
 
         obs = next_obs
 
@@ -271,7 +278,7 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             qf1_loss.backward()
             q_optimizer.step()
 
-            if global_step % args.policy_frequency == 0:
+            if (global_step+1) % args.policy_frequency == 0:
                 actor_loss = -qf1(data.observations, actor(data.observations)).mean()
                 actor_optimizer.zero_grad()
                 actor_loss.backward()
@@ -292,22 +299,20 @@ poetry run pip install "stable_baselines3==2.0.0a1"
             
         print(f"\rStep: {global_step:<10}Train Rewards {np.mean(steps_rewards[-w:]):>5.2f}", end='')
 
-        if global_step%3000 == 0:
-            model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
-            torch.save((actor.state_dict(), qf1.state_dict()), model_path)
-            print(f"model saved to {model_path}")
+        if global_step%50000 == 0:
             episodic_returns = evaluate(
-                model_path,
-                make_env,
-                args.env_id,
                 eval_episodes=3,
-                run_name=f"{run_name}-eval",
                 Model=Actor,
                 device=device,
+                epsilon=0,
                 actor_train=actor
             )
-            for idx, episodic_return in enumerate(episodic_returns):
-                writer.add_scalar("eval/episodic_return", episodic_return, idx)
-
-    sync_env.close()
+            for local_idx, episodic_return in enumerate(episodic_returns):
+                global_idx = 3*(global_step//3000) + local_idx
+                writer.add_scalar("eval/episodic_return", np.mean(episodic_return), global_idx)
+                
+    model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
+    torch.save((actor.state_dict(), qf1.state_dict()), model_path)
+    print(f"model saved to {model_path}")
+    env.close()
     writer.close()

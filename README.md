@@ -30,3 +30,15 @@ Até o momento está sendo realizado testes com a implementação do algoritmo D
 Para rodar o DDPG, execute:
 
     python teste_cleanrl_ddpg.py
+
+# Rodar controlando manualmente
+
+Para controlar o agente manulamente é necessário instalar a biblioteca abrir dois terminais diferentes. No primeiro rode o arquivo `simulation.py` com o commando:
+
+    python simulation.py
+
+Depois, no segundo terminal, execute o arquivo `control.py` com:
+
+    python control.py
+
+Pronto! basta deixar o segundo terminal selecionado e controlar o robô com as teclas `a, w, s, d` para movimentar e `q, e` para rotacionar.
