@@ -20,20 +20,16 @@ from rsoccer_gym.ssl.ssl_go_to_ball.ssl_gym_go_to_ball import SSLGoToBallEnv
 
 
 def evaluate(
-    model_path: str,
-    make_env: Callable,
-    env_id: str,
     eval_episodes: int,
-    run_name: str,
     Model: torch.nn.Module,
     device: torch.device = torch.device("cpu"),
     epsilon: float = 0.05,
-    capture_video: bool = True,
     actor_train=None,
 ):
     # envs = gym.vector.SyncVectorEnv([make_env(env_id, 0, 0, capture_video, run_name)])
     env = SSLGoToBallEnv(field_type=2)
-    env = TransformObservation(env, lambda obs: [((obs[0] - obs[4])**2 + (obs[1] - obs[5])**2)**0.5, obs[2], obs[3], obs[6], obs[7], obs[8], obs[9], obs[10]])
+    #env = TransformObservation(env, lambda obs: [((obs[0] - obs[4])**2 + (obs[1] - obs[5])**2)**0.5, obs[2], obs[3], obs[6], obs[7], obs[8], obs[9], obs[10]])
+    env = TransformObservation(env, lambda obs: [obs[0], obs[4], obs[1], obs[5]])
     obs, _ = env.reset()
     env.observation_space = gym.spaces.Box(low=-env.NORM_BOUNDS, high=env.NORM_BOUNDS, shape=(len(obs), ), dtype=np.float32)
     env.single_observation_space = env.observation_space
@@ -91,7 +87,7 @@ class Args:
     """the user or org name of the model repository from the Hugging Face Hub"""
 
     # Algorithm specific arguments
-    env_id: str = "Hopper-v4"
+    env_id: str = "ssl_pequi"
     """the environment id of the Atari game"""
     total_timesteps: int = 1000000
     """total timesteps of the experiments"""
@@ -138,9 +134,9 @@ def make_env():#env_id, seed, idx, capture_video, run_name):
 class QNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 1)
+        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod() + np.prod(env.single_action_space.shape), 8)
+        self.fc2 = nn.Linear(8, 8)
+        self.fc3 = nn.Linear(4, 1)
 
     def forward(self, x, a):
         x = torch.cat([x, a], 1)
@@ -153,9 +149,9 @@ class QNetwork(nn.Module):
 class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc_mu = nn.Linear(256, np.prod(env.single_action_space.shape))
+        self.fc1 = nn.Linear(np.array(env.single_observation_space.shape).prod(), 8)
+        self.fc2 = nn.Linear(8, 8)
+        self.fc_mu = nn.Linear(4, np.prod(env.single_action_space.shape))
         # action rescaling
         self.register_buffer(
             "action_scale", torch.tensor((env.single_action_space.high - env.single_action_space.low) / 2.0, dtype=torch.float32)
@@ -250,31 +246,16 @@ poetry run pip install "stable_baselines3==2.0.0a1"
                 actions = np.array(actions)
                 #print(actions.shape)
 
-        # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, rewards, terminations, trunc, infos = sync_env.step(actions)
         steps_rewards.append(np.mean(rewards))
-        #env.render()
 
-        # TRY NOT TO MODIFY: record rewards for plotting purposes
-        # if "final_info" in infos:
-        #     for info in infos["final_info"]:
-        #         #print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-        #         writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-        #         writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
-        #         break
-
-        # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
-        # for idx, trunc in enumerate(truncations):
-        #     if trunc:
-        #         real_next_obs[idx] = infos["final_observation"][idx]
+
         for i in range(real_next_obs.shape[0]):
             rb.add(obs[i, :], real_next_obs[i, :], actions[i, :], rewards[i], terminations[i], infos)
 
-        # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
 
-        # ALGO LOGIC: training.
         if global_step > args.learning_starts:
             data = rb.sample(args.batch_size)
             with torch.no_grad():

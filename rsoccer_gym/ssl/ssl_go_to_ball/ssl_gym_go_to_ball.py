@@ -114,43 +114,39 @@ class SSLGoToBallEnv(SSLBaseEnv):
 
     def _calculate_reward_and_done(self):
         reward = 0
+        angle = lambda x, y: np.arccos(np.dot(x, y) / (np.linalg.norm(x)*np.linalg.norm(y)))
 
         ball = self.frame.ball
         robot = self.frame.robots_blue[0]
+        goal_pos = np.array([self.field.length/2, 0])
+        ball_pos = np.array([ball.x, ball.y])
+        robot_pos = np.array([robot.x, robot.y])
         
-        diff_vec = np.array([ball.x, ball.y]) - np.array([robot.x, robot.y])
-        dist_robot_ball = np.linalg.norm(diff_vec)
+        diff_vec_goal_ball = goal_pos - ball_pos
+        diff_vec_robot_ball = robot_pos - ball_pos
+
+        dist_robot_ball = np.linalg.norm(diff_vec_robot_ball)
 
         orientation_vec = np.array([np.cos(robot.theta), np.sin(robot.theta)])
-        angular_dist = np.dot(diff_vec, orientation_vec)
+        angle_robot_ball = angle(-diff_vec_robot_ball, orientation_vec)
+        angle_robot_goal = angle(diff_vec_robot_ball, diff_vec_goal_ball)
         
         # Check if robot is less than 0.2m from ball
         done = False
         max_dist = np.sqrt(self.field.length**2 + self.field.width**2)
-        # if dist_robot_ball > 0.5*max_dist:
-        #     reward_dist = -1
-        # elif 0.3*max_dist < dist_robot_ball < 0.5*max_dist:
-        #     reward_dist = 0
-        # elif 0.2*max_dist < dist_robot_ball < 0.3*max_dist:
-        #     reward_dist = 0.25
-        # elif 0.2 < dist_robot_ball < 0.2*max_dist:
-        #     reward_dist = 0.5
-        # elif dist_robot_ball < 0.2:
-        #     reward_dist = 1
-        #     done = True
+
         reward_dist = -dist_robot_ball/max_dist
         if dist_robot_ball < 0.2:
             reward_dist = 1
             done = True
 
-        # if np.cos(np.deg2rad(45)) < angular_dist <= np.cos(np.deg2rad(0)):
-        #     reward_angle = 1
-        # elif np.cos(np.deg2rad(90)) > angular_dist >= np.cos(np.deg2rad(45)):
-        #     reward_angle = -0.5
-        # else:
-        #     reward_angle = -1
+        reward_angle_robot_ball = (angle_robot_ball/np.pi) - 1
+        
+        reward_angle_robot_goal = (angle_robot_goal/np.pi) - 1
 
-        return reward_dist, done # + 0.5*reward_angle, done
+        reward = reward_angle_robot_ball + reward_angle_robot_goal + reward_dist
+
+        return reward/3, done
     
     def _get_initial_positions_frame(self):
         '''Returns the position of each robot and ball for the initial frame'''
