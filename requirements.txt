@@ -7,3 +7,4 @@ tyro
 stable-baselines3
 tensorboard
 getch
+opencv-python
