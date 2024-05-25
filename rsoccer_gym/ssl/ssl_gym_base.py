@@ -21,7 +21,7 @@ class SSLBaseEnv(gym.Env):
     NORM_BOUNDS = 1.2
 
     def __init__(self, field_type: int,
-                 n_robots_blue: int, n_robots_yellow: int, time_step: float):
+                 n_robots_blue: int, n_robots_yellow: int, time_step: float, max_ep_length: int = 300):
         # Initialize Simulator
         self.time_step = time_step
         self.rsim = RSimSSL(field_type=field_type,
@@ -48,6 +48,7 @@ class SSLBaseEnv(gym.Env):
         self.view = None
         self.steps = 0
         self.sent_commands = None
+        self.max_ep_length = max_ep_length
 
     def step(self, action):
         self.steps += 1
@@ -65,7 +66,7 @@ class SSLBaseEnv(gym.Env):
         observation = self._frame_to_observations()
         reward, done = self._calculate_reward_and_done()
 
-        if self.steps >= 300:
+        if self.steps >= self.max_ep_length:
             done = True
 
         return observation, reward, done, None, {}

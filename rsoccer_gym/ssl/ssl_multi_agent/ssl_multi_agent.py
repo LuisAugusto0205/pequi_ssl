@@ -9,16 +9,24 @@ from collections import namedtuple
 
 
 class SSLMultiAgentEnv(SSLBaseEnv):
-    def __init__(self, n_robots_yellow=3, n_robots_blue=3, field_type=2):
+    def __init__(self, n_robots_yellow=3, n_robots_blue=3, field_type=2, 
+        init_pos = {'blue': [
+            [-1.5, 0],
+            [-2, 1],
+            [-2, -1],
+        ],
+        'yellow': [
+            [1.5, 0],
+            [2, 1],
+            [2, -1],
+        ]
+        },
+        ball = [0, 0], max_ep_length=300):
         field = 0 # SSL Division A Field
         super().__init__(field_type=field_type, n_robots_blue=n_robots_blue,
-                         n_robots_yellow=n_robots_yellow, time_step=0.025)
+                         n_robots_yellow=n_robots_yellow, time_step=0.025, max_ep_length=max_ep_length)
         self.n_robots_yellow = n_robots_yellow
         self.n_robots_blue = n_robots_blue
-        self.obs_size = 82 # Ball x,y and Robot x, y
-        self.act_size = 4
-        self.action_space = Box(low=-1, high=1, shape=(self.act_size*(n_robots_blue + n_robots_yellow), ))
-        self.observation_space = Box(low=-self.field.length/2, high=self.field.length/2, shape=(self.obs_size*(n_robots_blue + n_robots_yellow), ))
 
         self.ball_dist_scale = np.linalg.norm([self.field.width, self.field.length/2])
 
@@ -27,9 +35,14 @@ class SSLMultiAgentEnv(SSLBaseEnv):
         self.max_w = 10
         self.kick_speed_x = 5.0
 
-    # def _frame_to_observations(self):
-    #     ball, robot = self.frame.ball, self.frame.robots_blue[0]
-    #     return np.array([ball.x, ball.y, robot.x, robot.y])
+        self.init_pos = init_pos
+        self.ball = ball
+
+        obs, _ = self.reset()
+        self.obs_size = obs.shape[1] # Ball x,y and Robot x, y
+        self.act_size = 4
+        self.action_space = Box(low=-1, high=1, shape=(self.act_size*(n_robots_blue + n_robots_yellow), ))
+        self.observation_space = Box(low=-self.field.length/2, high=self.field.length/2, shape=(self.obs_size*(n_robots_blue + n_robots_yellow), ))
 
     def _get_commands(self, actions):
         commands = []
@@ -76,7 +89,7 @@ class SSLMultiAgentEnv(SSLBaseEnv):
 
         Goal = namedtuple('goal', ['x', 'y'])
 
-        blue_rw = np.zeros(self.n_robots_blue)
+        blue_rw = np.zeros(max(self.n_robots_blue, 1))
         r_dist = -1
         for idx in range(self.n_robots_blue):
             blue_robot = self.frame.robots_blue[idx]
@@ -89,12 +102,12 @@ class SSLMultiAgentEnv(SSLBaseEnv):
             r_def = (np.arccos(self._get_angle_between(goal_ally, blue_robot, ball)[1])/np.pi) - 1.0
 
             blue_rw[idx] = 0.7*r_speed + 0.1*r_off + 0.1*r_def
-        blue_rw += 0.1*r_dist*np.ones(self.n_robots_blue)
+        blue_rw += 0.1*r_dist*np.ones(max(self.n_robots_blue, 1))
         #print(f'\rr_speed: {r_speed:.2f}\tr_dist: {r_dist:.2f}\tr_off: {r_off:.2f}\tr_def: {r_def:.2f}\ttotal: {0.7*r_speed + 0.1*r_off + 0.1*r_def + 0.1*r_dist:.2f}\t', end='')
 
-        yellow_rw = np.zeros(self.n_robots_blue)
-        r_dist = 1
-        for idx in range(self.n_robots_blue):
+        yellow_rw = np.zeros(max(self.n_robots_yellow, 1))
+        r_dist = -1
+        for idx in range(self.n_robots_yellow):
             yellow_robot = self.frame.robots_yellow[idx]
             goal_adv = Goal(x=-self.field.length/2, y=0)
             goal_ally = Goal(x=self.field.length/2, y=0)
@@ -104,7 +117,7 @@ class SSLMultiAgentEnv(SSLBaseEnv):
             r_off = (np.arccos(self._get_angle_between(yellow_robot, ball, goal_adv)[1])/np.pi)- 1.0
             r_def = (np.arccos(self._get_angle_between(goal_ally, yellow_robot, ball)[1])/np.pi) - 1.0
             yellow_rw[idx] = 0.7*r_speed + 0.1*r_off + 0.1*r_def
-        yellow_rw += 0.1*r_dist*np.ones(self.n_robots_blue)
+        yellow_rw += 0.1*r_dist*np.ones(max(self.n_robots_yellow, 1))
 
         half_len = self.field.length/2 
         #half_wid = self.field.width/2
@@ -172,23 +185,30 @@ class SSLMultiAgentEnv(SSLBaseEnv):
             print("===============================")
         
         return np.clip(ball_dist_rw, -1, 1)
+
+    def reset(self, seed=42, options=None, idx=None, r=0.3):
+        self.steps = 0
+        self.last_frame = None
+        self.sent_commands = None
+
+        # Close render window
+        del(self.view)
+        self.view = None
+
+        initial_pos_frame: Frame = self._get_initial_positions_frame(idx, r, seed)
+        self.rsim.reset(initial_pos_frame)
+
+        # Get frame from simulator
+        self.frame = self.rsim.get_frame()
+
+        return self._frame_to_observations(), {}
   
-    def _get_initial_positions_frame(self):
+    def _get_initial_positions_frame(self, idx=None, r=0.3, seed=None):
         '''Returns the position of each robot and ball for the initial frame'''
+        np.random.seed(seed)
+
         field_half_length = self.field.length / 2
         field_half_width = self.field.width / 2
-
-        posits_blue = [
-            [-1.5, 0],
-            [-2, 1],
-            [-2, -1],
-        ]
-
-        posits_yellow = [
-            [1.5, 0],
-            [2, 1],
-            [2, -1],
-        ]
 
         def x(): return random.uniform(-field_half_length + 0.1,
                                        field_half_length - 0.1)
@@ -196,11 +216,19 @@ class SSLMultiAgentEnv(SSLBaseEnv):
         def y(): return random.uniform(-field_half_width + 0.1,
                                        field_half_width - 0.1)
 
-        def theta(): return random.uniform(0, 360)
-
         pos_frame: Frame = Frame()
 
-        pos_frame.ball = Ball(x=-1, y=1) #Ball(x=x(), y=y())
+        if idx is None:
+            pos_frame.ball = Ball(x=self.ball[0], y=self.ball[1]) #Ball(x=x(), y=y())
+        else:
+            t = np.linspace(0, 2, 360)
+            rx, ry = self.init_pos['blue'][idx] if idx < self.n_robots_blue else self.init_pos['yellow'][idx]
+            c_balls = np.vstack([rx + r*np.cos(t*np.pi), ry + r*np.sin(t*np.pi)]).T
+            mask =(abs(c_balls[:, 0]) < field_half_length) & (abs(c_balls[:, 1]) < field_half_width)
+            pos_c_balls = c_balls[mask]
+            idx = np.random.randint(pos_c_balls.shape[0])
+
+            pos_frame.ball = Ball(x=pos_c_balls[idx, 0], y=pos_c_balls[idx, 1])
 
         min_dist = 0.2
 
@@ -208,7 +236,7 @@ class SSLMultiAgentEnv(SSLBaseEnv):
         places.insert((pos_frame.ball.x, pos_frame.ball.y))
         
         for i in range(self.n_robots_blue):
-            pos = posits_blue[i] #(x(), y())
+            pos = self.init_pos['blue'][i] #(x(), y())
             while places.get_nearest(pos)[1] < min_dist:
                 pos = (x(), y())
 
@@ -216,7 +244,7 @@ class SSLMultiAgentEnv(SSLBaseEnv):
             pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=-30)#theta())
 
         for i in range(self.n_robots_yellow):
-            pos = posits_yellow[i] #(x(), y())
+            pos = self.init_pos['yellow'][i] #(x(), y())
             while places.get_nearest(pos)[1] < min_dist:
                 pos = (x(), y())
 
@@ -328,5 +356,7 @@ class SSLMultiAgentEnv(SSLBaseEnv):
             adv_dist = self._get_dist_between(adv, robot)
             robot_obs.append(list(adv_pos)) # 7 x 3 = 21
             robot_obs.append([adv_dist]) # 1 x 3 = 3
+        
+        robot_obs.append([(self.max_ep_length - self.steps)/self.max_ep_length])
         return np.concatenate(robot_obs)
         
