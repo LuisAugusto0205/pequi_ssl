@@ -14,14 +14,13 @@ Então, ative o ambiente com:
     
     source nome_ambiente/bin/activate
 
-
-Agora é necessário instalar a dependências do projeto, para isso primeiro rode o commando na pasta raiz do projeto:
-
-    pip install .
-
-Em seguida, instale outros pacotes necessários com:
+Em seguida, instale os pacotes necessários com:
 
     pip install -r requirements.txt
+
+Agora é necessário instalar outras dependências do projeto, para isso rode o commando na pasta raiz do projeto:
+
+    pip install .
 
 # Rodar Algoritmo de Reforço
 
@@ -29,16 +28,19 @@ Até o momento está sendo realizado testes com a implementação do algoritmo D
 
 Para rodar o DDPG, execute:
 
-    python teste_cleanrl_ddpg.py
+    python ddpg_gotoball.py
+ou
+
+    python ddpg_gotoball.py
 
 # Rodar controlando manualmente
 
 Para controlar o agente manulamente é necessário instalar a biblioteca abrir dois terminais diferentes. No primeiro rode o arquivo `simulation.py` com o commando:
 
-    python simulation.py
+    python manual_control/simulation.py
 
 Depois, no segundo terminal, execute o arquivo `control.py` com:
 
-    python control.py
+    python manual_control/control.py
 
 Pronto! basta deixar o segundo terminal selecionado e controlar o robô com as teclas `a, w, s, d` para movimentar e `q, e` para rotacionar.

@@ -46,7 +46,7 @@ while True:
     env.render()
 
     #if (steps % n_frames) == 0:
-    with open('command.txt', 'r') as file:
+    with open('manual_control/command.txt', 'r') as file:
         key = file.readline().strip()#input("\nDo a move: ")
     action = moves[key]
 
