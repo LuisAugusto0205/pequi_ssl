@@ -26,11 +26,6 @@ class Env_test_1(gym.Env):
     def reset(self):
         observation = 0
         return observation, {}
-    
-
-env = Env_test_1()
-env.reset()
-env.step(0)
 
 class Env_test_2(gym.Env):
     """One action, random +1/-1 observation, one timestep long, obs-dependent +1/-1 reward every time: 
