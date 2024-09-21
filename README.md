@@ -6,41 +6,17 @@ Clone o reposítorio com o comando:
 
     git clone https://github.com/LuisAugusto0205/pequi_ssl.git
 
-Após isso, crie um ambiente virtual com virtualenv:
+Mude para branch rllib:
 
-    virtualenv nome_ambiente
+    git checkout rllib
 
-Então, ative o ambiente com:
-    
-    source nome_ambiente/bin/activate
+Construa a imagem:
 
-Em seguida, instale os pacotes necessários com:
+    docker build -t rsoccer .
 
-    pip install -r requirements.txt
+Rode o container com volume:
 
-Agora é necessário instalar outras dependências do projeto, para isso rode o commando na pasta raiz do projeto:
+    docker run --gpus all --name rsoccer -v $(pwd)/volume:/app/volume -it rsoccer
 
-    pip install .
+Caso não esteja reconhecendo a gpu, tente instalar o [nvidia container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#installing-with-apt) ou mudar a versão do cuda no dockerfile
 
-# Rodar Algoritmo de Reforço
-
-Até o momento está sendo realizado testes com a implementação do algoritmo DDPG do respositório [cleanrl](https://github.com/vwxyzjn/cleanrl)
-
-Para rodar o DDPG, execute:
-
-    python ddpg_gotoball.py
-ou
-
-    python ddpg_gotoball.py
-
-# Rodar controlando manualmente
-
-Para controlar o agente manulamente é necessário instalar a biblioteca abrir dois terminais diferentes. No primeiro rode o arquivo `simulation.py` com o commando:
-
-    python manual_control/simulation.py
-
-Depois, no segundo terminal, execute o arquivo `control.py` com:
-
-    python manual_control/control.py
-
-Pronto! basta deixar o segundo terminal selecionado e controlar o robô com as teclas `a, w, s, d` para movimentar e `q, e` para rotacionar.
