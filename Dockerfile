@@ -17,4 +17,4 @@ COPY rsoccer_gym rsoccer_gym
 COPY rllib_multiagent.py .
 
 # Comando para rodar o Streamlit na inicialização do contêiner
-CMD ["python", "rllib_multiagent.py", "--checkpoint=volume/last_checkpoint", "--logdir=volume/log_tensor/gotoball"]
+CMD ["python", "rllib_multiagent.py", "--checkpoint=volume/last_checkpoint", "--logdir=volume/log_tensor/gotoball_agent_random_pos"]

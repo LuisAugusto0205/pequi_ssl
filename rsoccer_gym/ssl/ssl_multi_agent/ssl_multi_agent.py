@@ -11,7 +11,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
     default_players = 3
     def __init__(self, n_robots_yellow=0, n_robots_blue=1, field_type=2, 
         init_pos = {'blue': [
-            [-1.5, 0],
+            [np.random.uniform(-3, 3), np.random.uniform(-2, 2)],
             [-2, 1],
             [-2, -1],
         ],
@@ -23,16 +23,6 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         },
         ball = [0, 0], max_ep_length=300, options=None, idx=None, r=0.3):
         field = 0 # SSL Division A Field
-        # with open('log_multi_agent.txt', 'a') as f:
-        #     f.write(f"""
-        #         config: {config}
-        #         n_robots_yellow: {n_robots_yellow}
-        #         n_robots_bleu: {n_robots_blue}
-        #         field_type: {field_type}
-        #         init_pos: {init_pos}
-        #         ball: {ball}
-        #         max_ep_length: {max_ep_length}\n
-        #     """)
         agent_ids_blue = [f'blue_{i}'for i in range(n_robots_blue)]
         agent_ids_yellow = [f'yellow_{i}'for i in range(n_robots_yellow)]
         self._agent_ids = [*agent_ids_blue, *agent_ids_yellow]
@@ -72,10 +62,6 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
 
     def _get_commands(self, actions):
         commands = []
-        # with open('log_multi_agent.txt', 'a') as f:
-        #     f.write(f"""
-        #         \n\tget_commands action: {actions}
-        #     """)
         for i in range(self.n_robots_blue):
             robot_actions = actions[f'blue_{i}'].copy()
             angle = self.frame.robots_blue[i].theta
@@ -294,12 +280,13 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         places.insert((pos_frame.ball.x, pos_frame.ball.y))
         
         for i in range(self.n_robots_blue):
-            pos = self.init_pos['blue'][i] #(x(), y())
+            pos = (x(), y()) #self.init_pos['blue'][i] 
             while places.get_nearest(pos)[1] < min_dist:
                 pos = (x(), y())
 
             places.insert(pos)
             pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=-30)#theta())
+            
 
         for i in range(self.n_robots_yellow):
             pos = self.init_pos['yellow'][i] #(x(), y())

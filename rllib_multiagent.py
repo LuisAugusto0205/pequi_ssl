@@ -143,13 +143,16 @@ if __name__ == "__main__":
         writer = SummaryWriter(log_dir=log_dir)
 
     with open('volume/step_checkpoint.txt', 'r') as file:
-        last_epoch, best = file.readline().split(';')
+        last_epoch, _ = file.readline().split(';')
         last_epoch = int(last_epoch)
+    
+    with open('volume/best_step_checkpoint.txt', 'r') as file:
+        _, best = file.readline().split(';')
         best = float(best)
 
     with tqdm.tqdm(total=100000, initial=last_epoch) as pbar:
 
-        for epoch in range(last_epoch, 10000):
+        for epoch in range(last_epoch, 100000):
             try:
                 alg.train()
                 if epoch % 10 == 0:
@@ -166,16 +169,16 @@ if __name__ == "__main__":
                             file.write(f'{epoch};{best}')
 
                     with open('volume/step_checkpoint.txt', 'w') as file:
-                        file.write(f'{epoch};{best}')
+                        file.write(f"{epoch};{results['episode_reward_mean']}")
 
-                if epoch % 10 == 0:  
+                if epoch % 100 == 0:  
                     alg.save('volume/last_checkpoint/')
                 
             except Exception as e:
                 print(e)
                 with open('volume/step_checkpoint.txt', 'w') as file:
                     file.write(f'{epoch};{best}')
-                break
+                continue
             
             pbar.update(1)
 
