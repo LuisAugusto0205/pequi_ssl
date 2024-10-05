@@ -11,7 +11,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
     default_players = 3
     def __init__(self, n_robots_yellow=0, n_robots_blue=1, field_type=2, 
         init_pos = {'blue': [
-            [np.random.uniform(-3, 3), np.random.uniform(-2, 2)],
+            [-1.5, 0],
             [-2, 1],
             [-2, -1],
         ],
@@ -21,8 +21,10 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
             [2, -1],
         ]
         },
-        ball = [0, 0], max_ep_length=300, options=None, idx=None, r=0.3):
+        ball = [0, 0], max_ep_length=300, options=None, idx=None, r=0.3, random_pos_ball=False, random_pos_robot=False):
         field = 0 # SSL Division A Field
+        self.random_pos_ball = random_pos_ball
+        self.random_pos_robot = random_pos_robot
         agent_ids_blue = [f'blue_{i}'for i in range(n_robots_blue)]
         agent_ids_yellow = [f'yellow_{i}'for i in range(n_robots_yellow)]
         self._agent_ids = [*agent_ids_blue, *agent_ids_yellow]
@@ -34,7 +36,6 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         self.options=options
         self.idx=idx
         self.r=0.3
-
         self.ball_dist_scale = np.linalg.norm([self.field.width, self.field.length/2])
 
         # Limit robot speeds
@@ -46,6 +47,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         self.ball = ball
 
         obs, _ = self.reset()
+
         if self.n_robots_blue > 0:
             self.obs_size = obs[f'blue_0'].shape[0] # Ball x,y and Robot x, y
         else:
@@ -249,7 +251,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
   
     def _get_initial_positions_frame(self, seed):
         '''Returns the position of each robot and ball for the initial frame'''
-        np.random.seed(seed)
+        #np.random.seed(seed)
 
         field_half_length = self.field.length / 2
         field_half_width = self.field.width / 2
@@ -263,7 +265,10 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         pos_frame: Frame = Frame()
 
         if self.idx is None:
-            pos_frame.ball = Ball(x=self.ball[0], y=self.ball[1]) #Ball(x=x(), y=y())
+            if self.random_pos_ball:
+                pos_frame.ball = Ball(x=x(), y=y())
+            else:
+                pos_frame.ball = Ball(x=self.ball[0], y=self.ball[1])
         else:
             t = np.linspace(0, 2, 360)
             rx, ry = self.init_pos['blue'][self.idx] if self.idx < self.n_robots_blue else self.init_pos['yellow'][self.idx]
@@ -280,7 +285,11 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         places.insert((pos_frame.ball.x, pos_frame.ball.y))
         
         for i in range(self.n_robots_blue):
-            pos = (x(), y()) #self.init_pos['blue'][i] 
+            if self.random_pos_robot:
+                pos = (x(), y()) 
+            else:
+                pos = self.init_pos['blue'][i] 
+                
             while places.get_nearest(pos)[1] < min_dist:
                 pos = (x(), y())
 
@@ -289,7 +298,11 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
             
 
         for i in range(self.n_robots_yellow):
-            pos = self.init_pos['yellow'][i] #(x(), y())
+            if self.random_pos_robot:
+                pos = (x(), y()) 
+            else:
+                pos = self.init_pos['yellow'][i] 
+
             while places.get_nearest(pos)[1] < min_dist:
                 pos = (x(), y())
 

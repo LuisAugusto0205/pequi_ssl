@@ -32,7 +32,6 @@ from ray.tune.registry import (
 
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
-from ray.rllib.utils.framework import try_import_tf
 from ray.rllib.utils.test_utils import check_learning_achieved
 
 from rsoccer_gym.ssl.ssl_multi_agent.ssl_multi_agent import SSLMultiAgentEnv
@@ -45,39 +44,14 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 import os
 
-
-
-# with open('log_multi_agent.txt', 'w') as f:
-#     pass
-
 class SSLMultiAgentEnvRllib(SSLMultiAgentEnv):
     def __init__(self, config):
         super().__init__(**config)
 
-
-tf1, tf, tfv = try_import_tf()
-
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--num-agents", type=int, default=4)
-# parser.add_argument("--num-policies", type=int, default=2)
-parser.add_argument("--num-cpus", type=int, default=4)
+parser.add_argument("--num-cpus", type=int, default=8)
 
-parser.add_argument(
-    "--as-test",
-    action="store_true",
-    help="Whether this script should be run as a test: --stop-reward must "
-    "be achieved within --stop-timesteps AND --stop-iters.",
-)
-parser.add_argument(
-    "--stop-iters", type=int, default=100000000, help="Number of iterations to train."
-)
-parser.add_argument(
-    "--stop-timesteps", type=int, default=10000000, help="Number of timesteps to train."
-)
-parser.add_argument(
-    "--stop-reward", type=float, default=50000.0, help="Reward at which we stop training."
-)
 parser.add_argument(
     "--checkpoint", type=str, default="", help="checkpoint path"
 )
@@ -88,7 +62,7 @@ parser.add_argument(
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    ray.init(num_cpus=args.num_cpus or None)
+    ray.init(num_cpus=args.num_cpus, num_gpus=1)
 
     # Register the models to use.
     ModelCatalog.register_custom_model("model_blue", TorchFullyConnectedNetwork)
@@ -122,7 +96,9 @@ if __name__ == "__main__":
         .environment(SSLMultiAgentEnvRllib, env_config={
             'n_robots_blue': 1, 
             'n_robots_yellow': 0,
-            'field_type': 2
+            'field_type': 2,
+            'random_pos_ball': False,
+            'random_pos_robot': False,
         })
         .framework("torch")
         .training(num_sgd_iter=10, use_gae=True)
