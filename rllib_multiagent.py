@@ -50,13 +50,18 @@ class SSLMultiAgentEnvRllib(SSLMultiAgentEnv):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--num-cpus", type=int, default=8)
+parser.add_argument("--num-cpus", type=int, default=8,  help="Número de cpus a serem usadas")
 
 parser.add_argument(
-    "--checkpoint", type=str, default="", help="checkpoint path"
+    "--task", type=int, default=1, help="Número da task a ser treinada"
 )
+
 parser.add_argument(
-    "--logdir", type=str, default="", help="checkpoint path"
+    "--checkpoint_task", type=int, default=-1, help="Número da task a qual o checkpoint será usado para treinar a task atual"
+)
+
+parser.add_argument(
+    "--best", action='store_true', help="Se presente usa o best checkpoint, caso contrário usa o last"
 )
 
 if __name__ == "__main__":
@@ -97,8 +102,9 @@ if __name__ == "__main__":
             'n_robots_blue': 1, 
             'n_robots_yellow': 0,
             'field_type': 2,
-            'random_pos_ball': False,
-            'random_pos_robot': False,
+            'random_pos_ball': True if args.task == 3 else False,
+            'random_pos_robot': True if args.task in [2, 3] else False,
+            'random_theta': True
         })
         .framework("torch")
         .training(num_sgd_iter=10, use_gae=True)
@@ -109,20 +115,16 @@ if __name__ == "__main__":
         )
 
     alg = config.build()
-    if args.checkpoint != "":
-        writer = SummaryWriter(log_dir=args.logdir)
-        alg.restore(args.checkpoint)
-    else:
-        log_dir = "volume/log_tensor/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        writer = SummaryWriter(log_dir=log_dir)
+    if args.checkpoint_task > -1:
+        alg.restore(f"volume/last_checkpoint_gotoball_task{args.checkpoint_task}/" if not args.best else f"volume/best_checkpoint_gotoball_task{args.checkpoint_task}/")
+    
+    writer = SummaryWriter(log_dir=f'volume/log_tensor/gotoball_task{args.task}/')
 
-    with open('volume/step_checkpoint.txt', 'r') as file:
+    with open(f'volume/last_step_checkpoint_task{args.task}.txt', 'r') as file:
         last_epoch, _ = file.readline().split(';')
         last_epoch = int(last_epoch)
     
-    with open('volume/best_step_checkpoint.txt', 'r') as file:
+    with open(f'volume/best_step_checkpoint_task{args.task}.txt', 'r') as file:
         _, best = file.readline().split(';')
         best = float(best)
 
@@ -140,26 +142,24 @@ if __name__ == "__main__":
 
                     if results['episode_reward_mean'] > best:  
                         best = results['episode_reward_mean']
-                        alg.save('volume/best_checkpoint/')
-                        with open('volume/best_step_checkpoint.txt', 'w') as file:
+                        alg.save(f'volume/best_checkpoint_gotoball_task{args.task}/')
+                        with open(f'volume/best_step_checkpoint_task{args.task}.txt', 'w') as file:
                             file.write(f'{epoch};{best}')
 
-                    with open('volume/step_checkpoint.txt', 'w') as file:
+                    with open(f'volume/last_step_checkpoint_task{args.task}.txt', 'w') as file:
                         file.write(f"{epoch};{results['episode_reward_mean']}")
 
                 if epoch % 100 == 0:  
-                    alg.save('volume/last_checkpoint/')
+                    alg.save(f'volume/last_checkpoint_gotoball_task{args.task}/')
                 
             except Exception as e:
                 print(e)
-                with open('volume/step_checkpoint.txt', 'w') as file:
+                with open(f'volume/last_step_checkpoint_task{args.task}.txt', 'w') as file:
                     file.write(f'{epoch};{best}')
                 continue
             
             pbar.update(1)
 
-
-        
 
     print(results)
     ray.shutdown()

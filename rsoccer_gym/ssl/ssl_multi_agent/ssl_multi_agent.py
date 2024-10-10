@@ -11,20 +11,21 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
     default_players = 3
     def __init__(self, n_robots_yellow=0, n_robots_blue=1, field_type=2, 
         init_pos = {'blue': [
-            [-1.5, 0],
-            [-2, 1],
-            [-2, -1],
+            [-1.5, 0, 0],
+            [-2, 1, 0],
+            [-2, -1, 0],
         ],
         'yellow': [
-            [1.5, 0],
-            [2, 1],
-            [2, -1],
+            [1.5, 0, 180],
+            [2, 1, 180],
+            [2, -1, 180],
         ]
         },
-        ball = [0, 0], max_ep_length=300, options=None, idx=None, r=0.3, random_pos_ball=False, random_pos_robot=False):
+        ball = [0, 0], max_ep_length=300, options=None, idx=None, r=0.3, random_pos_ball=False, random_pos_robot=False, random_theta=False):
         field = 0 # SSL Division A Field
         self.random_pos_ball = random_pos_ball
         self.random_pos_robot = random_pos_robot
+        self.random_theta = random_theta
         agent_ids_blue = [f'blue_{i}'for i in range(n_robots_blue)]
         agent_ids_yellow = [f'yellow_{i}'for i in range(n_robots_yellow)]
         self._agent_ids = [*agent_ids_blue, *agent_ids_yellow]
@@ -150,13 +151,21 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         half_len = self.field.length/2 
         #half_wid = self.field.width/2
         half_goal_wid = self.field.goal_width / 2
+        if self._get_dist_between(ball, self.frame.robots_blue[0]) < 0.03:
+            done = {f'blue_{i}':True for i in range(self.n_robots_blue)}
+            done.update({f'yellow_{i}':True for i in range(self.n_robots_yellow)})
+            done.update({'__all__': True})
+
+            blue_rw_dict = {f'blue_{i}': 100 for i in range(self.n_robots_blue)}
+            yellow_rw_dict = {f'yellow_{i}': -1 for i in range(self.n_robots_yellow)}
+
         if ball.x >= half_len and abs(ball.y) < half_goal_wid:
             done = {f'blue_{i}':True for i in range(self.n_robots_blue)}
             done.update({f'yellow_{i}':True for i in range(self.n_robots_yellow)})
             done.update({'__all__': True})
 
-            blue_rw_dict = {f'blue_{id}': 1 for i in range(self.n_robots_blue)}
-            yellow_rw_dict = {f'yellow_{id}': -1 for i in range(self.n_robots_yellow)}
+            blue_rw_dict = {f'blue_{i}': 1 for i in range(self.n_robots_blue)}
+            yellow_rw_dict = {f'yellow_{i}': -1 for i in range(self.n_robots_yellow)}
         
         elif ball.x <= -half_len and abs(ball.y) < half_goal_wid:
             done = {f'blue_{i}':True for i in range(self.n_robots_blue)}
@@ -261,6 +270,8 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
 
         def y(): return random.uniform(-field_half_width + 0.1,
                                        field_half_width - 0.1)
+        
+        def theta(): return random.uniform(0, 360)
 
         pos_frame: Frame = Frame()
 
@@ -286,28 +297,28 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         
         for i in range(self.n_robots_blue):
             if self.random_pos_robot:
-                pos = (x(), y()) 
+                pos = (x(), y(), theta()) 
             else:
                 pos = self.init_pos['blue'][i] 
                 
-            while places.get_nearest(pos)[1] < min_dist:
-                pos = (x(), y())
+            while places.get_nearest(pos[:2])[1] < min_dist:
+                pos = (x(), y(), theta()) 
 
             places.insert(pos)
-            pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta=-30)#theta())
+            pos_frame.robots_blue[i] = Robot(x=pos[0], y=pos[1], theta= theta() if self.random_theta else pos[2])#theta())
             
 
         for i in range(self.n_robots_yellow):
             if self.random_pos_robot:
-                pos = (x(), y()) 
+                pos = (x(), y(), theta()) 
             else:
                 pos = self.init_pos['yellow'][i] 
 
-            while places.get_nearest(pos)[1] < min_dist:
-                pos = (x(), y())
+            while places.get_nearest(pos[:2])[1] < min_dist:
+                pos = (x(), y(), theta()) 
 
             places.insert(pos)
-            pos_frame.robots_yellow[i] = Robot(x=pos[0], y=pos[1], theta=180)#theta())
+            pos_frame.robots_yellow[i] = Robot(x=pos[0], y=pos[1], theta=theta() if self.random_theta else pos[2])#theta())
 
         return pos_frame
 
