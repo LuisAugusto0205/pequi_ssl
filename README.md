@@ -18,10 +18,10 @@ Rode o container com volume:
 
     docker run --gpus all --name rsoccer -v $(pwd)/volume:/app/volume -it rsoccer python rllib_multiagent.py --task 1 --checkpoint_task 1
 
-A variável `task` indica qual task será executada, podendo ser:
-    1: Posição do robô fixa e bola fixa
-    2: Posição do robô aleatória e bola fixa.
-    3: Posição do robê aleatória e bola em posição aleatória:
+A variável `task` indica qual task será executada, podendo ser: \
+    - 1: Posição do robô fixa e bola fixa \
+    - 2: Posição do robô aleatória e bola fixa. \
+    - 3: Posição do robê aleatória e bola em posição aleatória:
 
 O `checkpoint_task` indica o checkpoint de qual task deve ser carrega para iniciar o aprendizado por reforço. 
 
