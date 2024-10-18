@@ -106,13 +106,24 @@ if __name__ == "__main__":
             'random_pos_robot': True if args.task in [2, 3] else False,
             'random_theta': True
         })
+        .rollouts(num_rollout_workers=8)
         .framework("torch")
-        .training(num_sgd_iter=10, use_gae=True)
+        .training(
+            num_sgd_iter=10, 
+            use_gae=True,
+            train_batch_size=4000,
+        )
         .multi_agent(policies=policies, policy_mapping_fn=policy_mapping_fn)
         # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0.
-        .resources(num_gpus=1)
+        .resources(
+            num_gpus=1,
+            num_learner_workers=1,
+        )
         .evaluation(evaluation_interval=5)
         )
+
+    # print(config.to_dict())
+    # print(f"\n\n\nnum_workers: {config.num_rollout_workers}\n\n\n")
 
     alg = config.build()
     if args.checkpoint_task > -1:
