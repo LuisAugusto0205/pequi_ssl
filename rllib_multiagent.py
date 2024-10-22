@@ -108,7 +108,7 @@ class SelfPlayUpdateCallback(DefaultCallbacks):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    ray.init()
+    ray.init(num_cpus=6, num_gpus=1)
 
     with open("config.yaml") as f:
         # use safe_load instead load
@@ -124,8 +124,8 @@ if __name__ == "__main__":
 
     tune.registry.register_env("Soccer", create_rllib_env)
     temp_env = create_rllib_env(configs["env_config"])
-    obs_space = temp_env.observation_space
-    act_space = temp_env.action_space
+    obs_space = temp_env.observation_space["blue_0"]
+    act_space = temp_env.action_space["blue_0"]
     temp_env.close()
 
     # Register the models to use.
@@ -157,12 +157,13 @@ if __name__ == "__main__":
         stop={
             # "timesteps_total": 16000000,
             # "time_total_s": 7200, #2h
-            "time_total_s": 110, #2h
+            "time_total_s": 220, #2h
         },
         checkpoint_freq=100,
         checkpoint_at_end=True,
         local_dir="./volume",
-        # restore="./ray_results/PPO_selfplay_twos_2/PPO_Soccer_a8b44_00000_0_2021-09-18_11-13-55/checkpoint_000600/checkpoint-600",
+        resume=True,
+        #restore="/home/luisaugusto/ray_results/PPO_selfplay_rec/PPO_Soccer_2903d_00000_0_2024-10-22_09-42-55/checkpoint_000000",
     )
 
     # Gets best trial based on max accuracy across all training iterations.

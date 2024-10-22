@@ -1,8 +1,8 @@
 score_average_over: 100
 rllib:
-  # num_cpus: 9
+  num_cpus: 6
   num_gpus: 1
-  num_workers: 8
+  num_workers: 5
   num_envs_per_worker: 2
   # total envs is 32 across all workers
   # log_level: "INFO"
