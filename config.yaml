@@ -1,0 +1,44 @@
+score_average_over: 100
+rllib:
+  # num_cpus: 9
+  num_gpus: 1
+  num_workers: 8
+  num_envs_per_worker: 2
+  # total envs is 32 across all workers
+  # log_level: "INFO"
+  framework: "torch"
+  disable_env_checking: true
+PPO:
+  batch_mode: "truncate_episodes"
+  rollout_fragment_length: 214
+  train_batch_size: 20544 #workers*envs*fragment
+  sgd_minibatch_size: 6848 #batch/3
+  gamma: 0.99
+  lambda: 0.95
+  entropy_coeff: 0.0
+  kl_coeff: 0.0
+  lr: 0.0004
+  vf_loss_coeff: 0.5
+  # max_grad_norm=0.5,
+  num_sgd_iter: 5
+  clip_param: 0.2
+  vf_clip_param: 100000.0 # essentially turning vf_clip off
+
+  normalize_actions: false
+
+custom_model:
+  fcnet_hiddens: [300, 200, 100]
+  vf_share_layers: false
+env:
+  init_pos:
+    blue:
+      1: [-1.5,  0.0,    0.0]
+      2: [-2.0,  1.0,    0.0]
+      3: [-2.0, -1.0,    0.0]
+    yellow:
+      1: [ 1.5,  0.0,  180.0]
+      2: [ 2.0,  1.0,  180.0]
+      3: [ 2.0, -1.0,  180.0]
+  field_type: 2
+  fps: 30 # frames per second
+  match_time: 40 # total seconds of match
