@@ -44,9 +44,9 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
 
         self.stack_observation = stack_observation
         # Limit robot speeds
-        self.max_v = 2.5
+        self.max_v = 1.5
         self.max_w = 10
-        self.kick_speed_x = 5.0
+        self.kick_speed_x = 3.0
 
         self.init_pos = init_pos
 
@@ -59,8 +59,8 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         yellow = {f'yellow_{i}': Box(low=self.actions_bound["low"], high=self.actions_bound["high"], shape=(self.act_size, ), dtype=np.float64) for i in range(self.n_robots_yellow)}
         self.action_space =  Dict(**blue, **yellow)
 
-        blue = {f'blue_{i}': Box(low=-self.NORM_BOUNDS, high=self.NORM_BOUNDS, shape=(self.stack_observation * self.obs_size, ), dtype=np.float64) for i in range(self.n_robots_blue)}
-        yellow = {f'yellow_{i}': Box(low=-self.NORM_BOUNDS, high=self.NORM_BOUNDS, shape=(self.stack_observation * self.obs_size, ), dtype=np.float64) for i in range(self.n_robots_yellow)}
+        blue = {f'blue_{i}': Box(low=-self.NORM_BOUNDS - 0.001, high=self.NORM_BOUNDS + 0.001, shape=(self.stack_observation * self.obs_size, ), dtype=np.float64) for i in range(self.n_robots_blue)}
+        yellow = {f'yellow_{i}': Box(low=-self.NORM_BOUNDS - 0.001, high=self.NORM_BOUNDS + 0.001, shape=(self.stack_observation * self.obs_size, ), dtype=np.float64) for i in range(self.n_robots_yellow)}
         self.observation_space = Dict(**blue, **yellow)
 
         self.observations = {
@@ -227,7 +227,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         ball_pos = np.array([ball.x, ball.y])
         ball_dist = np.linalg.norm(goal - ball_pos)
         diff = last_ball_dist - ball_dist
-        ball_dist = min(diff - 0.01, 2*self.max_v*(1/self.fps))
+        ball_dist = min(diff - 0.01, self.kick_speed_x*(1/self.fps))
         ball_speed_rw = ball_dist/(1/self.fps)
         
         # if ball_speed_rw > 1:
@@ -237,7 +237,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         #     print(self.frame.robots_yellow)
         #     print("===============================")
         
-        return np.clip(ball_speed_rw, -1, 1)
+        return np.clip(ball_speed_rw/self.kick_speed_x, 0, 1)
 
     def reset(self, seed=42, options={}):
         self.steps = 0
@@ -353,7 +353,7 @@ class SSLMultiAgentEnv(SSLBaseEnv, MultiAgentEnv):
         max_dist = np.linalg.norm([self.field.length, self.field.width])
         dist = np.linalg.norm(diff_vec)
 
-        return dist / max_dist
+        return np.clip(dist / max_dist, 0, 1)
 
     def _frame_to_observations(self):
 

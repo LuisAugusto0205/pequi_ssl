@@ -25,22 +25,10 @@ import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import os
 
+# RAY_PDB=1 python rllib_multiagent.py
+# ray debug
 def create_rllib_env(config):
     return SSLMultiAgentEnv(**config)
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument(
-    "--task", type=int, default=1, help="Número da task a ser treinada"
-)
-
-parser.add_argument(
-    "--checkpoint_task", type=int, default=-1, help="Número da task a qual o checkpoint será usado para treinar a task atual"
-)
-
-parser.add_argument(
-    "--best", action='store_true', help="Se presente usa o best checkpoint, caso contrário usa o last"
-)
 
 def policy_mapping_fn(agent_id, episode, worker, **kwargs):
     if "blue" in agent_id:
@@ -107,7 +95,6 @@ class SelfPlayUpdateCallback(DefaultCallbacks):
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
     ray.init(num_cpus=6, num_gpus=1)
 
     with open("config.yaml") as f:
@@ -157,12 +144,12 @@ if __name__ == "__main__":
         stop={
             # "timesteps_total": 16000000,
             # "time_total_s": 7200, #2h
-            "time_total_s": 220, #2h
+            "time_total_s": 60*60, #2h
         },
-        checkpoint_freq=100,
+        checkpoint_freq=5,
         checkpoint_at_end=True,
-        local_dir="./volume",
-        resume=True,
+        local_dir="./",
+        #resume=True,
         #restore="/home/luisaugusto/ray_results/PPO_selfplay_rec/PPO_Soccer_2903d_00000_0_2024-10-22_09-42-55/checkpoint_000000",
     )
 
