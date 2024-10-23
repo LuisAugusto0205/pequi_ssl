@@ -14,7 +14,12 @@ RUN pip install torch --index-url https://download.pytorch.org/whl/cu118
 # Copie a pasta DatabaseAtividades para o contêiner
 RUN mkdir /rsoccer_gym
 COPY rsoccer_gym rsoccer_gym
+
 COPY rllib_multiagent.py .
+COPY action_dists.py .
+COPY custom_torch_model.py .
+COPY config.yaml .
+RUN mkdir /app/volume
 
 # Comando para rodar o Streamlit na inicialização do contêiner
-CMD ["python", "rllib_multiagent.py", "--checkpoint=volume/last_checkpoint_gotoball_task1", "--logdir=volume/log_tensor/gotoball_task1"]
+CMD ["python", "rllib_multiagent.py"]

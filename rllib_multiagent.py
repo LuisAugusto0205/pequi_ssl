@@ -148,7 +148,7 @@ if __name__ == "__main__":
         },
         checkpoint_freq=5,
         checkpoint_at_end=True,
-        local_dir="./",
+        local_dir=os.path.abspath("volume"),
         #resume=True,
         #restore="/home/luisaugusto/ray_results/PPO_selfplay_rec/PPO_Soccer_2903d_00000_0_2024-10-22_09-42-55/checkpoint_000000",
     )
